@@ -15,9 +15,9 @@ countries.
 
 #include <android/asset_manager.h>
 
-#include <tiny_obj_loader.h>
+#include "tiny_obj_loader.h"
 
-#include <VuforiaEngine/VuforiaEngine.h>
+#include "VuforiaEngine/VuforiaEngine.h"
 
 #include <vector>
 
@@ -32,7 +32,6 @@ public:
     void deinit();
 
     void setAstronautTexture(int width, int height, unsigned char* bytes);
-    void setLanderTexture(int width, int height, unsigned char* bytes);
 
     /// Render the video background
     void renderVideoBackground(const VuMatrix44F& projectionMatrix, const float* vertices, const float* textureCoordinates,
@@ -41,15 +40,11 @@ public:
     /// Render augmentation for the world origin
     void renderWorldOrigin(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix);
 
+    /* Render a bounding box augmentation on an Video PlayBack */
+    void renderVideoPlayback(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix, const VuVector2F &markerSize);
+
     /// Render a bounding box augmentation on an Image Target
     void renderImageTarget(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix);
-
-    /// Render a bounding cube augmentation on a Model Target
-    void renderModelTarget(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix);
-
-    /// Render the Guide View for a Model Target
-    void renderModelTargetGuideView(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, const VuImageInfo& Image,
-                                    VuBool guideViewImageHasChanged);
 
 private: // methods
     /// Attempt to create a texture from bytes
@@ -90,6 +85,19 @@ private: // methods
      */
     bool loadObjModel(const std::vector<char>& data, int& numVertices, std::vector<float>& vertices, std::vector<float>& texCoords);
 
+public:
+    /* Screen size and video size */
+    float _vVideoWidth = 0.0f;
+    float _vVideoHeight = 0.0f;
+
+    /* For video playback rendering */
+    GLuint _vTextureId = 0;
+    GLuint _vProgram = 0;
+    GLint _vaPosition = -1;
+    GLint _vaTexCoordLoc = -1;
+    GLint _vuProjectionMatrixLoc = -1;
+    GLint _vuSamplerOES = -1;
+
 private: // data members
     // For video background rendering
     GLuint mVbShaderProgramID = 0;
@@ -124,12 +132,6 @@ private: // data members
     std::vector<float> mAstronautVertices;
     std::vector<float> mAstronautTexCoords;
     GLuint mAstronautTextureUnit = -1;
-
-    // For rendering the Lander, loaded from the obj file
-    int mLanderVertexCount;
-    std::vector<float> mLanderVertices;
-    std::vector<float> mLanderTexCoords;
-    GLuint mLanderTextureUnit = -1;
 };
 
 #endif //_VUFORIA_GLESRENDERER_H_

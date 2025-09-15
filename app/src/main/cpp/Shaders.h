@@ -9,16 +9,35 @@ countries.
 #define _VUFORIA_SHADERS_H_
 
 /////////////////////////////////////////////////////////////////////////////////////////
+// texture shader: vertexTexCoord in vertex shader, textureOES sample
+/////////////////////////////////////////////////////////////////////////////////////////
+static const char* VERTEX_SHADER =
+        "attribute vec4 a_Position;\n"
+        "attribute vec2 a_TexCoord;\n"
+        "uniform mat4 u_ProjectionMatrix;\n"
+        "varying vec2 v_TexCoord;\n"
+        "void main() {\n"
+        "  gl_Position = u_ProjectionMatrix * a_Position;\n"
+        "  v_TexCoord = a_TexCoord;\n"
+        "}\n";
+
+static const char* FRAGMENT_SHADER =
+        "#extension GL_OES_EGL_image_external : require\n"
+        "precision mediump float;\n"
+        "varying vec2 v_TexCoord;\n"
+        "uniform samplerExternalOES u_SamplerOES;\n"
+        "void main() {\n"
+        "  gl_FragColor = texture2D(u_SamplerOES, v_TexCoord);\n"
+        "}\n";
+
+/////////////////////////////////////////////////////////////////////////////////////////
 // texture shader: vertexTexCoord in vertex shader, texture2D sample
 /////////////////////////////////////////////////////////////////////////////////////////
 static const char* textureVertexShaderSrc = R"(
     attribute vec4 vertexPosition;
     attribute vec2 vertexTextureCoord;
-
     uniform mat4 modelViewProjectionMatrix;
-
     varying vec2 texCoord;
-
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vertexPosition;
@@ -29,11 +48,8 @@ static const char* textureVertexShaderSrc = R"(
 
 static const char* textureFragmentShaderSrc = R"(
     precision mediump float;
-
     uniform sampler2D texSampler2D;
-
     varying vec2 texCoord;
-
     void main()
     {
         gl_FragColor = texture2D(texSampler2D, texCoord);
@@ -47,11 +63,8 @@ static const char* textureFragmentShaderSrc = R"(
 static const char* textureColorVertexShaderSrc = R"(
     attribute vec4 vertexPosition;
     attribute vec2 vertexTextureCoord;
-
     uniform mat4 modelViewProjectionMatrix;
-
     varying vec2 texCoord;
-
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vertexPosition;
@@ -62,13 +75,9 @@ static const char* textureColorVertexShaderSrc = R"(
 
 static const char* textureColorFragmentShaderSrc = R"(
     precision mediump float;
-
     uniform sampler2D texSampler2D;
-
     varying vec2 texCoord;
-
     uniform vec4 uniformColor;
-
     void main()
     {
         vec4 texColor = texture2D(texSampler2D, texCoord);
@@ -82,9 +91,7 @@ static const char* textureColorFragmentShaderSrc = R"(
 /////////////////////////////////////////////////////////////////////////////////////////
 static const char* uniformColorVertexShaderSrc = R"(
     attribute vec4 vertexPosition;
-
     uniform mat4 modelViewProjectionMatrix;
-
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vertexPosition;
@@ -94,9 +101,7 @@ static const char* uniformColorVertexShaderSrc = R"(
 
 static const char* uniformColorFragmentShaderSrc = R"(
     precision mediump float;
-
     uniform vec4 uniformColor;
-
     void main()
     {
         gl_FragColor = uniformColor;
@@ -110,12 +115,9 @@ static const char* uniformColorFragmentShaderSrc = R"(
 static const char* vertexColorVertexShaderSrc = R"(
     attribute vec4 vertexPosition;
     attribute vec4 vertexColor;
-
     uniform mat4 modelViewProjectionMatrix;
-
     // Color to use per vertex, linear interpolated down at fragment shader
     varying vec4 color;
-
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vertexPosition;
@@ -125,9 +127,7 @@ static const char* vertexColorVertexShaderSrc = R"(
 
 static const char* vertexColorFragmentShaderSrc = R"(
     precision mediump float;
-
     varying vec4 color;
-
     void main()
     {
         gl_FragColor = color;

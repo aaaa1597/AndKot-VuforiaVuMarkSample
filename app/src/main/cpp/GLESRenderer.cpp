@@ -10,14 +10,21 @@ countries.
 #include "GLESUtils.h"
 #include "Shaders.h"
 
-#include <MemoryStream.h>
-#include <Models.h>
+#include "MemoryStream.h"
+#include "Models.h"
 
 #include <android/asset_manager.h>
 
 bool
 GLESRenderer::init(AAssetManager* assetManager)
 {
+    /* Setup for Video PlayBack rendering */
+    _vProgram = GLESUtils::createProgramFromBuffer(VERTEX_SHADER, FRAGMENT_SHADER);
+    _vaPosition = glGetAttribLocation(_vProgram, "a_Position");
+    _vaTexCoordLoc = glGetAttribLocation(_vProgram, "a_TexCoord");
+    _vuProjectionMatrixLoc = glGetUniformLocation(_vProgram, "u_ProjectionMatrix");
+    _vuSamplerOES = glGetUniformLocation(_vProgram, "u_SamplerOES");
+
     // Setup for Video Background rendering
     mVbShaderProgramID = GLESUtils::createProgramFromBuffer(textureVertexShaderSrc, textureFragmentShaderSrc);
     mVbVertexPositionHandle = glGetAttribLocation(mVbShaderProgramID, "vertexPosition");
@@ -51,7 +58,7 @@ GLESRenderer::init(AAssetManager* assetManager)
 
     // Load Astronaut model
     {
-        if (!readAsset(assetManager, "Astronaut.obj", data))
+        if (!readAsset(assetManager, "ImageTargets/Astronaut.obj", data))
         {
             return false;
         }
@@ -61,20 +68,6 @@ GLESRenderer::init(AAssetManager* assetManager)
         }
         data.clear();
         mAstronautTextureUnit = -1;
-    }
-
-    // Load Lander model
-    {
-        if (!readAsset(assetManager, "VikingLander.obj", data))
-        {
-            return false;
-        }
-        if (!loadObjModel(data, mLanderVertexCount, mLanderVertices, mLanderTexCoords))
-        {
-            return false;
-        }
-        data.clear();
-        mLanderTextureUnit = -1;
     }
 
     return true;
@@ -94,11 +87,6 @@ GLESRenderer::deinit()
         GLESUtils::destroyTexture(mAstronautTextureUnit);
         mAstronautTextureUnit = -1;
     }
-    if (mLanderTextureUnit != -1)
-    {
-        GLESUtils::destroyTexture(mLanderTextureUnit);
-        mLanderTextureUnit = -1;
-    }
 }
 
 
@@ -106,13 +94,6 @@ void
 GLESRenderer::setAstronautTexture(int width, int height, unsigned char* bytes)
 {
     createTexture(width, height, bytes, mAstronautTextureUnit);
-}
-
-
-void
-GLESRenderer::setLanderTexture(int width, int height, unsigned char* bytes)
-{
-    createTexture(width, height, bytes, mLanderTextureUnit);
 }
 
 
@@ -170,6 +151,61 @@ GLESRenderer::renderWorldOrigin(VuMatrix44F& projectionMatrix, VuMatrix44F& mode
     renderCube(projectionMatrix, modelViewMatrix, 0.015f, cubeColor);
 }
 
+void
+GLESRenderer::renderVideoPlayback(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix, const VuVector2F &markerSize) {
+    VuMatrix44F scaledModelViewProjectionMatrix = vuMatrix44FMultiplyMatrix(projectionMatrix, scaledModelViewMatrix);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(_vProgram);
+
+    /* Calculation of vertex coordinates considering the aspect ratio. */
+    float markerAspect = markerSize.data[0] / markerSize.data[1];
+    float videoAspect = _vVideoWidth / _vVideoHeight;
+
+    float scaleX = 0.5f;
+    float scaleY = 0.5f;
+
+    if(markerAspect > videoAspect)  /* When the marker is wider than the video. */
+        scaleX = scaleX * (videoAspect / markerAspect);
+    else    /* When the marker is taller than the video or has the same aspect ratio. */
+        scaleY = scaleY * (markerAspect / videoAspect);
+
+
+    GLfloat vertices[] = {
+        -scaleX, -scaleY, 0.0f, /* 左下 */
+         scaleX, -scaleY, 0.0f, /* 右下 */
+        -scaleX,  scaleY, 0.0f, /* 左上 */
+         scaleX, scaleY, 0.0f  /* 右上 */
+    };
+
+    GLfloat texCoords[] = {
+        0.0f, 1.0f, /* 左下 */
+        1.0f, 1.0f, /* 右下 */
+        0.0f, 0.0f, /* 左上 */
+        1.0f, 0.0f  /* 右上 */
+    };
+
+    glVertexAttribPointer(_vaPosition, 3, GL_FLOAT, GL_FALSE, 0, vertices);
+    glVertexAttribPointer(_vaTexCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, texCoords);
+    glEnableVertexAttribArray(_vaPosition);
+    glEnableVertexAttribArray(_vaTexCoordLoc);
+
+    glUniformMatrix4fv(_vuProjectionMatrixLoc, 1, GL_FALSE, &scaledModelViewProjectionMatrix.data[0]);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, _vTextureId);
+    glUniform1i(_vuSamplerOES, 0);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glDisableVertexAttribArray(_vaPosition);
+    glDisableVertexAttribArray(_vaTexCoordLoc);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+    glUseProgram(0);
+}
 
 void
 GLESRenderer::renderImageTarget(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix)
@@ -217,75 +253,6 @@ GLESRenderer::renderImageTarget(VuMatrix44F& projectionMatrix, VuMatrix44F& mode
     VuMatrix44F modelViewProjectionMatrix = vuMatrix44FMultiplyMatrix(projectionMatrix, modelViewMatrix);
     renderModel(modelViewProjectionMatrix, mAstronautVertexCount, mAstronautVertices.data(), mAstronautTexCoords.data(),
                 mAstronautTextureUnit);
-}
-
-
-void
-GLESRenderer::renderModelTarget(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& /*scaledModelViewMatrix*/)
-{
-    VuMatrix44F modelViewProjectionMatrix = vuMatrix44FMultiplyMatrix(projectionMatrix, modelViewMatrix);
-
-    renderModel(modelViewProjectionMatrix, mLanderVertexCount, mLanderVertices.data(), mLanderTexCoords.data(), mLanderTextureUnit);
-
-    VuVector3F axis10cmSize{ 0.1f, 0.1f, 0.1f };
-    renderAxis(projectionMatrix, modelViewMatrix, axis10cmSize, 4.0f);
-}
-
-
-void
-GLESRenderer::renderModelTargetGuideView(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, const VuImageInfo& image,
-                                         VuBool guideViewImageHasChanged)
-{
-    VuMatrix44F modelViewProjectionMatrix = vuMatrix44FMultiplyMatrix(projectionMatrix, modelViewMatrix);
-
-
-    glDisable(GL_DEPTH_TEST);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glActiveTexture(GL_TEXTURE0);
-
-    // The guide view image is updated if the device orientation changes.
-    // This is indicated by the guideViewImageHasChanged flag. In that case,
-    // recreate the texture with the latest content of the image.
-    if (mModelTargetGuideViewTextureUnit == -1 || guideViewImageHasChanged == VU_TRUE)
-    {
-        // Free the previous texture
-        if (mModelTargetGuideViewTextureUnit != -1)
-        {
-            GLESUtils::destroyTexture(mModelTargetGuideViewTextureUnit);
-        }
-
-        mModelTargetGuideViewTextureUnit = GLESUtils::createTexture(image);
-    }
-    glBindTexture(GL_TEXTURE_2D, mModelTargetGuideViewTextureUnit);
-
-    glEnableVertexAttribArray(mTextureUniformColorVertexPositionHandle);
-    glVertexAttribPointer(mTextureUniformColorVertexPositionHandle, 3, GL_FLOAT, GL_FALSE, 0, (const GLvoid*)&squareVertices[0]);
-
-    glEnableVertexAttribArray(mTextureUniformColorTextureCoordHandle);
-    glVertexAttribPointer(mTextureUniformColorTextureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0, (const GLvoid*)&squareTexCoords[0]);
-
-    glUseProgram(mTextureUniformColorShaderProgramID);
-    glUniformMatrix4fv(mTextureUniformColorMvpMatrixHandle, 1, GL_FALSE, (GLfloat*)modelViewProjectionMatrix.data);
-    glUniform4f(mTextureUniformColorColorHandle, 1.0f, 1.0f, 1.0f, 0.7f);
-    glUniform1i(mTextureUniformColorTexSampler2DHandle, 0); // texture unit, not handle
-
-    // Draw
-    glDrawElements(GL_TRIANGLES, NUM_SQUARE_INDEX, GL_UNSIGNED_SHORT, (const GLvoid*)&squareIndices[0]);
-
-    // disable input data structures
-    glDisableVertexAttribArray(mTextureUniformColorTextureCoordHandle);
-    glDisableVertexAttribArray(mTextureUniformColorVertexPositionHandle);
-    glUseProgram(0);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    GLESUtils::checkGlError("Render guide view");
-
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
 }
 
 

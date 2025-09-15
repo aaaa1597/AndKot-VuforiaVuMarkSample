@@ -25,7 +25,7 @@ extern void* javaVM;
 namespace
 {
 // clang-format off
-constexpr char licenseKey[] = "AfNEh8n/////AAABmejpQ04/j08qivvSILLz4y2E1VQHyRRIJUcCvpfW04L7aSPzWQS2Dj1P9/7rTfZBS5uqY44RsQqHrtfLyqTGK08KAahYEC2gxtsezJcJhcJ2zaXMDoMT7asP+noB/ax3jy1xq33LNt/nqaLKrFpZihRM8CUDmGvk4SNcwAqyL1VZLwlG863AUHbLkCYk5GizJZ1zb5luAHelowV3N6pUNXRdhE+qmBJAwPS90OUvN7WEsC9sdnOonyrD2fu5JHPZrK/FIWP6LqpfsnmjeKGm0gWYza7JXIQcyfw6qAHdips+DazGR1Zgbp9xJRR2pWj3kpsL/5z1rxe85ez0pHbCAgCAFqoZPwaSPP/SF+TjIypG";
+constexpr char licenseKey[] = "";
 // clang-format on
 
 constexpr float NEAR_PLANE = 0.01f;
@@ -383,7 +383,7 @@ AppController::getOrigin(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMa
 
 
 bool
-AppController::getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix)
+AppController::getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix, VuVector2F& markerSize)
 {
     bool result = false;
 
@@ -422,6 +422,9 @@ AppController::getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& 
 
             if (poseInfo.poseStatus != VU_OBSERVATION_POSE_STATUS_NO_POSE)
             {
+                markerSize.data[0] = imageTargetInfo.size.data[0];
+                markerSize.data[1] = imageTargetInfo.size.data[1];
+
                 projectionMatrix = mCurrentRenderState.projectionMatrix;
 
                 // Compute model-view matrix
@@ -446,194 +449,6 @@ AppController::getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& 
     REQUIRE_SUCCESS(vuObservationListDestroy(observationList));
 
     return result;
-}
-
-
-bool
-AppController::getModelTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix)
-{
-    bool result = false;
-
-    if (mTarget != MODEL_TARGET_ID)
-    {
-        return false;
-    }
-
-    VuObservationList* observationList = nullptr;
-    REQUIRE_SUCCESS(vuObservationListCreate(&observationList));
-
-    if (vuStateGetModelTargetObservations(mVuforiaState, observationList) != VU_SUCCESS)
-    {
-        LOG("Error getting model target observations");
-        REQUIRE_SUCCESS(vuObservationListDestroy(observationList));
-        return false;
-    }
-
-    int numObservations = 0;
-    REQUIRE_SUCCESS(vuObservationListGetSize(observationList, &numObservations));
-
-    if (numObservations > 0)
-    {
-        VuObservation* observation = nullptr;
-        if (vuObservationListGetElement(observationList, 0, &observation) == VU_SUCCESS)
-        {
-            assert(observation);
-            assert(vuObservationIsType(observation, VU_OBSERVATION_MODEL_TARGET_TYPE) == VU_TRUE);
-            assert(vuObservationHasPoseInfo(observation) == VU_TRUE);
-
-            VuPoseInfo poseInfo;
-            REQUIRE_SUCCESS(vuObservationGetPoseInfo(observation, &poseInfo));
-
-            VuModelTargetObservationTargetInfo modelTargetInfo;
-            REQUIRE_SUCCESS(vuModelTargetObservationGetTargetInfo(observation, &modelTargetInfo));
-            if (poseInfo.poseStatus == VU_OBSERVATION_POSE_STATUS_NO_POSE)
-            {
-                VuGuideViewList* guideViewList;
-                REQUIRE_SUCCESS(vuGuideViewListCreate(&guideViewList));
-
-                if (vuModelTargetObserverGetGuideViews(mObjectObserver, guideViewList) != VU_SUCCESS)
-                {
-                    LOG("Error getting list of guide views");
-                }
-                else
-                {
-                    int32_t size;
-                    REQUIRE_SUCCESS(vuGuideViewListGetSize(guideViewList, &size));
-                    mGuideViewModelTarget = [&]() -> VuGuideView* {
-                        for (int i = 0; i < size; ++i)
-                        {
-                            VuGuideView* guideView = nullptr;
-                            REQUIRE_SUCCESS(vuGuideViewListGetElement(guideViewList, i, &guideView));
-                            const char* guideViewName = nullptr;
-                            REQUIRE_SUCCESS(vuGuideViewGetName(guideView, &guideViewName));
-
-                            // Note: We use the activeGuideViewName as we know there is a guide view for our dataset.
-                            //       When using Advanced Model Targets there may not be a guide view and
-                            //       activeGuideViewName will be NULL.
-                            if (strcmp(guideViewName, modelTargetInfo.activeGuideViewName) == 0)
-                            {
-                                return guideView;
-                            }
-                        }
-                        return nullptr;
-                    }();
-                    if (!mGuideViewModelTarget)
-                    {
-                        LOG("Error getting guide view details");
-                    }
-                }
-
-                REQUIRE_SUCCESS(vuGuideViewListDestroy(guideViewList));
-            }
-            else
-            {
-                mGuideViewModelTarget = nullptr;
-
-                projectionMatrix = mCurrentRenderState.projectionMatrix;
-
-                // Compute model-view matrix
-                auto modelMatrix = poseInfo.pose;
-                modelViewMatrix = vuMatrix44FMultiplyMatrix(mCurrentRenderState.viewMatrix, modelMatrix);
-
-                // Calculate a scaled modelViewMatrix for rendering a unit bounding box
-                VuMatrix44F scaleMatrix = vuMatrix44FScalingMatrix(modelTargetInfo.size);
-                VuMatrix44F translateMatrix = vuMatrix44FTranslationMatrix(modelTargetInfo.bbox.center);
-
-                scaledModelViewMatrix = vuMatrix44FMultiplyMatrix(translateMatrix, scaleMatrix);
-                scaledModelViewMatrix = vuMatrix44FMultiplyMatrix(modelViewMatrix, scaledModelViewMatrix);
-
-                result = true;
-            }
-        }
-    }
-
-    REQUIRE_SUCCESS(vuObservationListDestroy(observationList));
-
-    return result;
-}
-
-
-bool
-AppController::getModelTargetGuideView(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuImageInfo& guideViewImageInfo,
-                                       VuBool& guideViewImageHasChanged)
-{
-    if (mGuideViewModelTarget == nullptr)
-    {
-        return false;
-    }
-
-    VuCameraIntrinsics cameraIntrinsics;
-    if (vuStateGetCameraIntrinsics(mVuforiaState, &cameraIntrinsics) != VU_SUCCESS)
-    {
-        return false;
-    }
-    auto fov = vuCameraIntrinsicsGetFov(&cameraIntrinsics);
-
-    if (vuGuideViewIsImageOutdated(mGuideViewModelTarget, &guideViewImageHasChanged) != VU_SUCCESS)
-    {
-        return false;
-    }
-
-    VuImage* guideViewImage = nullptr;
-    if (vuGuideViewGetImage(mGuideViewModelTarget, &guideViewImage) != VU_SUCCESS)
-    {
-        return false;
-    }
-
-    if (vuImageGetImageInfo(guideViewImage, &guideViewImageInfo) != VU_SUCCESS)
-    {
-        LOG("Error getting image info for guide view");
-        return false;
-    }
-
-    float guideViewAspectRatio = (float)guideViewImageInfo.width / guideViewImageInfo.height;
-
-    float planeDistance = 0.01f;
-    float fieldOfView = fov.data[1];
-    float nearPlaneHeight = 1.0f * planeDistance * std::tanf(fieldOfView * 0.5f);
-    float nearPlaneWidth = nearPlaneHeight * mDisplayAspectRatio;
-
-    float planeWidth;
-    float planeHeight;
-    if (guideViewAspectRatio >= 1.0f && mDisplayAspectRatio >= 1.0f) // guideview landscape, camera landscape
-    {
-        // scale so that the long side of the camera (width)
-        // is the same length as guideview width
-        planeWidth = nearPlaneWidth;
-        planeHeight = planeWidth / guideViewAspectRatio;
-    }
-
-    else if (guideViewAspectRatio < 1.0f && mDisplayAspectRatio < 1.0f) // guideview portrait, camera portrait
-    {
-        // scale so that the long side of the camera (height)
-        // is the same length as guideview height
-        planeHeight = nearPlaneHeight;
-        planeWidth = planeHeight * guideViewAspectRatio;
-    }
-    else if (mDisplayAspectRatio < 1.0f) // guideview landscape, camera portrait
-    {
-        // scale so that the long side of the camera (height)
-        // is the same length as guideview width
-        planeWidth = nearPlaneHeight;
-        planeHeight = planeWidth / guideViewAspectRatio;
-    }
-    else // guideview portrait, camera landscape
-    {
-        // scale so that the long side of the camera (width)
-        // is the same length as guideview height
-        planeHeight = nearPlaneWidth;
-        planeWidth = planeHeight * guideViewAspectRatio;
-    }
-
-    // normalize world space plane sizes into view space again
-    VuVector2F scale = { 2 * planeWidth / nearPlaneWidth, 2 * planeHeight / nearPlaneHeight };
-
-    projectionMatrix = vuIdentityMatrix44F();
-    modelViewMatrix = vuIdentityMatrix44F();
-
-    modelViewMatrix = vuMatrix44FScale(VuVector3F{ scale.data[0], scale.data[1], 1.0f }, modelViewMatrix);
-
-    return true;
 }
 
 
@@ -926,7 +741,7 @@ AppController::createObservers()
     if (mTarget == IMAGE_TARGET_ID)
     {
         auto imageTargetConfig = vuImageTargetConfigDefault();
-        imageTargetConfig.databasePath = "StonesAndChips.xml";
+        imageTargetConfig.databasePath = "ImageTargets/StonesAndChips.xml";
         imageTargetConfig.targetName = "stones";
         imageTargetConfig.activate = VU_TRUE;
 
@@ -942,7 +757,7 @@ AppController::createObservers()
     {
         auto modelTargetConfig = vuModelTargetConfigDefault();
 
-        modelTargetConfig.databasePath = "VuforiaMars_ModelTarget.xml";
+        modelTargetConfig.databasePath = "ModelTargets/VuforiaMars_ModelTarget.xml";
         modelTargetConfig.targetName = "VuforiaMars_ModelTarget";
         modelTargetConfig.activate = VU_TRUE;
 

@@ -8,22 +8,21 @@ countries.
 #include <jni.h>
 
 #include "GLESRenderer.h"
-#include <AppController.h>
-#include <Log.h>
+#include "AppController.h"
+#include "Log.h"
 
-#include <VuforiaEngine/VuforiaEngine.h>
+#include "VuforiaEngine/VuforiaEngine.h"
 
 #include <GLES3/gl31.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
+#include <android/log.h>
 
 #include <cassert>
 #include <chrono>
 #include <mutex>
 #include <optional>
 #include <vector>
-
-#include <arcore_c_api.h>
 
 // Cross-platform AppController providing high level Vuforia Engine operations
 AppController controller;
@@ -54,8 +53,7 @@ std::mutex gARCoreInfoMutex;
 
 // JNI Implementation
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 // Local method declarations
@@ -70,8 +68,10 @@ void callPresentError(const char* errorString);
  */
 bool getFusionProviderPointers();
 
+#if 0
 /// Demonstrate how to use the Fusion Provider (ARCore) pointers obtained from Vuforia Engine.
 void accessFusionProviderPointers();
+#endif
 
 
 /// Called by JNI binding when the client code loads the library
@@ -102,9 +102,10 @@ JNI_OnLoad(JavaVM* vm, void* reserved)
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_initAR(JNIEnv* env, jobject /* this */, jobject activity, jobject assetManager,
-                                                              jint target)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_initAR(JNIEnv* env, jclass/* claz */,
+                                                              jobject activity,
+                                                              jobject assetManager,
+                                                              jint target) {
     // Store the Java VM pointer so we can get a JNIEnv in callbacks
     if (env->GetJavaVM(&gWrapperData.vm) != 0)
     {
@@ -178,8 +179,7 @@ Java_com_vuforia_engine_native_1sample_VuforiaActivity_initAR(JNIEnv* env, jobje
 
 
 JNIEXPORT jboolean JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_startAR(JNIEnv* /* env */, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_startAR(JNIEnv* /* env */, jclass /* clazz */) {
     // Update usingARCore flag to avoid checking this every frame
     auto platformController = controller.getPlatformController();
     assert(platformController);
@@ -207,15 +207,13 @@ Java_com_vuforia_engine_native_1sample_VuforiaActivity_startAR(JNIEnv* /* env */
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_stopAR(JNIEnv* /* env */, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_stopAR(JNIEnv* /* env */, jclass /* clazz */) {
     controller.stopAR();
 }
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_deinitAR(JNIEnv* env, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_deinitAR(JNIEnv* env, jclass /* clazz */) {
     controller.deinitAR();
 
     gWrapperData.assetManager = nullptr;
@@ -225,65 +223,61 @@ Java_com_vuforia_engine_native_1sample_VuforiaActivity_deinitAR(JNIEnv* env, job
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_cameraPerformAutoFocus(JNIEnv* /* env */, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_cameraPerformAutoFocus(JNIEnv* /* env */, jclass /* clazz */) {
     controller.cameraPerformAutoFocus();
 }
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_cameraRestoreAutoFocus(JNIEnv* /* env */, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_cameraRestoreAutoFocus(JNIEnv* /* env */, jclass /* clazz */) {
     controller.cameraRestoreAutoFocus();
 }
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_initRendering(JNIEnv* /* env */, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_initRendering(JNIEnv* /* env */, jclass /*clazz */) {
     // Define clear color
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     if (!gWrapperData.renderer.init(gWrapperData.assetManager))
     {
-        LOG("Error initialising rendering");
+        __android_log_print(ANDROID_LOG_ERROR, "aaaaa", "Error initialising rendering"); 
     }
 }
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_setTextures(JNIEnv* env, jobject /* this */, jint astronautWidth,
-                                                                   jint astronautHeight, jobject astronautByteBuffer, jint landerWidth,
-                                                                   jint landerHeight, jobject landerByteBuffer)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_setTextures(JNIEnv* env, jclass /* this */,
+                                                            jint astronautWidth,
+                                                            jint astronautHeight,
+                                                            jobject astronautByteBuffer) {
     // Textures are loaded using the BitmapFactory which isn't available from the NDK.
     // They are loaded in the Kotlin code and passed to this method to create GLES textures.
     auto astronautBytes = static_cast<unsigned char*>(env->GetDirectBufferAddress(astronautByteBuffer));
     gWrapperData.renderer.setAstronautTexture(astronautWidth, astronautHeight, astronautBytes);
-    auto landerBytes = static_cast<unsigned char*>(env->GetDirectBufferAddress(landerByteBuffer));
-    gWrapperData.renderer.setLanderTexture(landerWidth, landerHeight, landerBytes);
 }
 
 
 JNIEXPORT void JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_deinitRendering(JNIEnv* /* env */, jobject /* this */)
+Java_com_aaa_vuforiavumarksample_JniKt_deinitRendering(JNIEnv* /* env */, jclass /* clazz */)
 {
     gWrapperData.renderer.deinit();
 }
 
 
 JNIEXPORT jboolean JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_configureRendering(JNIEnv* /* env */, jobject /* this */, jint width, jint height,
-                                                                          jint orientation, jint rotation)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_configureRendering(JNIEnv* /* env */, jclass /* clazz */,
+                                                                   jint width,
+                                                                   jint height,
+                                                                   jint orientation,
+                                                                   jint rotation) {
     std::vector<int> androidOrientation{ orientation, rotation };
     return controller.configureRendering(width, height, androidOrientation.data()) ? JNI_TRUE : JNI_FALSE;
 }
 
 
 JNIEXPORT jboolean JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_renderFrame(JNIEnv* /* env */, jobject /* this */)
-{
+Java_com_aaa_vuforiavumarksample_JniKt_renderFrame(JNIEnv* /* env */, jclass /* clazz */) {
     if (!controller.isARStarted())
     {
         return JNI_FALSE;
@@ -319,44 +313,24 @@ Java_com_vuforia_engine_native_1sample_VuforiaActivity_renderFrame(JNIEnv* /* en
         VuMatrix44F trackableModelViewScaled;
         VuImageInfo modelTargetGuideViewImage;
         VuBool guideViewImageHasChanged;
-        if (controller.getImageTargetResult(trackableProjection, trackableModelView, trackableModelViewScaled))
+        VuVector2F markerSize;
+        if (controller.getImageTargetResult(trackableProjection, trackableModelView, trackableModelViewScaled, markerSize))
         {
+            gWrapperData.renderer.renderVideoPlayback(trackableProjection, trackableModelView, trackableModelViewScaled, markerSize);
             gWrapperData.renderer.renderImageTarget(trackableProjection, trackableModelView, trackableModelViewScaled);
-        }
-        else if (controller.getModelTargetResult(trackableProjection, trackableModelView, trackableModelViewScaled))
-        {
-            gWrapperData.renderer.renderModelTarget(trackableProjection, trackableModelView, trackableModelViewScaled);
-        }
-        else if (controller.getModelTargetGuideView(trackableProjection, trackableModelView, modelTargetGuideViewImage,
-                                                    guideViewImageHasChanged))
-        {
-            gWrapperData.renderer.renderModelTargetGuideView(trackableProjection, trackableModelView, modelTargetGuideViewImage,
-                                                             guideViewImageHasChanged);
         }
 
         if (gWrapperData.usingARCore)
         {
+#if 0
             accessFusionProviderPointers();
+#endif
         }
     }
 
     controller.finishRender();
 
     return JNI_TRUE;
-}
-
-
-JNIEXPORT jint JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_00024Companion_getImageTargetId(JNIEnv* /* env */, jobject /* this */)
-{
-    return AppController::IMAGE_TARGET_ID;
-}
-
-
-JNIEXPORT jint JNICALL
-Java_com_vuforia_engine_native_1sample_VuforiaActivity_00024Companion_getModelTargetId(JNIEnv* /* env */, jobject /* this */)
-{
-    return AppController::MODEL_TARGET_ID;
 }
 
 
@@ -392,6 +366,7 @@ getFusionProviderPointers()
 }
 
 
+#if 0
 void
 accessFusionProviderPointers()
 {
@@ -456,7 +431,39 @@ accessFusionProviderPointers()
 
     gARCoreInfoMutex.unlock();
 }
+#endif
 
 #ifdef __cplusplus
 }
 #endif
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_aaa_vuforiavumarksample_JniKt_initVideoTexture(JNIEnv *env, jclass clazz) {
+    gWrapperData.renderer._vTextureId = -1;
+    glGenTextures(1, &gWrapperData.renderer._vTextureId);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, gWrapperData.renderer._vTextureId);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+    return static_cast<jint>(gWrapperData.renderer._vTextureId);
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_aaa_vuforiavumarksample_JniKt_nativeOnSurfaceChanged(JNIEnv *env,
+                                                              jclass clazz,
+                                                              jint width,
+                                                              jint height) {
+    glViewport(0, 0, width, height);
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_aaa_vuforiavumarksample_JniKt_nativeSetVideoSize(JNIEnv *env,
+                                                          jclass clazz,
+                                                          jint width,
+                                                          jint height) {
+    gWrapperData.renderer._vVideoWidth = static_cast<float>(width);
+    gWrapperData.renderer._vVideoHeight= static_cast<float>(height);
+}

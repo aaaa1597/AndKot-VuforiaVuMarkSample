@@ -99,16 +99,7 @@ public:
 
     /// Get rendering information for the Image Target.
     /// Returns false if Vuforia isn't currently tracking the Image Target.
-    bool getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix);
-
-    /// Get rendering information for the Model Target.
-    /// Returns false if Vuforia isn't currently tracking the Model Target.
-    bool getModelTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix);
-
-    /// Get rendering information for the Model Target Guide View.
-    /// Returns false if Guide View rendering isn't required for the current frame.
-    bool getModelTargetGuideView(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuImageInfo& guideViewImageInfo,
-                                 VuBool& guideViewImageHasChanged);
+    bool getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix, VuVector2F& markerSize);
 
     /// Get the PlatformController handle.
     /// The result is only valid after initAR is called and before deinitAR is called.
