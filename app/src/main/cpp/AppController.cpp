@@ -25,7 +25,7 @@ extern void* javaVM;
 namespace
 {
 // clang-format off
-constexpr char licenseKey[] = "";
+constexpr char licenseKey[] = "AfNEh8n/////AAABmejpQ04/j08qivvSILLz4y2E1VQHyRRIJUcCvpfW04L7aSPzWQS2Dj1P9/7rTfZBS5uqY44RsQqHrtfLyqTGK08KAahYEC2gxtsezJcJhcJ2zaXMDoMT7asP+noB/ax3jy1xq33LNt/nqaLKrFpZihRM8CUDmGvk4SNcwAqyL1VZLwlG863AUHbLkCYk5GizJZ1zb5luAHelowV3N6pUNXRdhE+qmBJAwPS90OUvN7WEsC9sdnOonyrD2fu5JHPZrK/FIWP6LqpfsnmjeKGm0gWYza7JXIQcyfw6qAHdips+DazGR1Zgbp9xJRR2pWj3kpsL/5z1rxe85ez0pHbCAgCAFqoZPwaSPP/SF+TjIypG";
 // clang-format on
 
 constexpr float NEAR_PLANE = 0.01f;
@@ -738,7 +738,21 @@ AppController::createObservers()
         return false;
     }
 
-    if (mTarget == IMAGE_TARGET_ID)
+    if (mTarget == VUMARK_ID) {
+        auto viMarkConfig = vuVuMarkConfigDefault();
+        viMarkConfig.databasePath = "VuMark/aaa.xml";
+        viMarkConfig.templateName = "vumark_aaa999";
+        viMarkConfig.activate = VU_TRUE;
+
+        VuVuMarkCreationError vuVuMarkCreationError;
+        if (vuEngineCreateVuMarkObserver(mEngine, &mObjectObserver, &viMarkConfig, &vuVuMarkCreationError) != VU_SUCCESS)
+        {
+            LOG("Error creating VuMark observer: 0x%02x", vuVuMarkCreationError);
+            mErrorMessageCallback("Error creating image target observer");
+            return false;
+        }
+    }
+    else if (mTarget == IMAGE_TARGET_ID)
     {
         auto imageTargetConfig = vuImageTargetConfigDefault();
         imageTargetConfig.databasePath = "ImageTargets/StonesAndChips.xml";
@@ -806,8 +820,7 @@ AppController::updateDevicePose()
         int numObservations = 0;
         REQUIRE_SUCCESS(vuObservationListGetSize(observationList, &numObservations));
 
-        if (numObservations > 0)
-        {
+        for(int lpct =0 ; lpct < numObservations; lpct++) {
             VuObservation* observation = nullptr;
             if (vuObservationListGetElement(observationList, 0, &observation) == VU_SUCCESS)
             {

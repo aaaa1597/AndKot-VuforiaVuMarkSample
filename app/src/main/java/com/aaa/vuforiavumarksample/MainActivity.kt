@@ -41,6 +41,8 @@ import kotlin.concurrent.schedule
 
 const val IMAGE_TARGET_ID = 0
 const val MODEL_TARGET_ID = 1
+const val VUMARK_ID = 2
+
 val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
 class MainActivity : AppCompatActivity() {
@@ -204,7 +206,7 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun initializeVuforia() {
         return withContext(Dispatchers.Default) {
-            initAR(this@MainActivity, this@MainActivity.assets, IMAGE_TARGET_ID)
+            initAR(this@MainActivity, this@MainActivity.assets, VUMARK_ID)
         }
     }
 

@@ -26,6 +26,7 @@ public:
     // Constants
     static constexpr int IMAGE_TARGET_ID = 0;
     static constexpr int MODEL_TARGET_ID = 1;
+    static constexpr int VUMARK_ID = 2;
 
     // Type definitions
     using ErrorMessageCallback = std::function<void(const char* errorString)>;
