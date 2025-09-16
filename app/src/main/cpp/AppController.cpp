@@ -25,7 +25,7 @@ extern void* javaVM;
 namespace
 {
 // clang-format off
-constexpr char licenseKey[] = "AfNEh8n/////AAABmejpQ04/j08qivvSILLz4y2E1VQHyRRIJUcCvpfW04L7aSPzWQS2Dj1P9/7rTfZBS5uqY44RsQqHrtfLyqTGK08KAahYEC2gxtsezJcJhcJ2zaXMDoMT7asP+noB/ax3jy1xq33LNt/nqaLKrFpZihRM8CUDmGvk4SNcwAqyL1VZLwlG863AUHbLkCYk5GizJZ1zb5luAHelowV3N6pUNXRdhE+qmBJAwPS90OUvN7WEsC9sdnOonyrD2fu5JHPZrK/FIWP6LqpfsnmjeKGm0gWYza7JXIQcyfw6qAHdips+DazGR1Zgbp9xJRR2pWj3kpsL/5z1rxe85ez0pHbCAgCAFqoZPwaSPP/SF+TjIypG";
+constexpr char licenseKey[] = "";
 // clang-format on
 
 constexpr float NEAR_PLANE = 0.01f;
@@ -422,8 +422,8 @@ AppController::getVuMarkResult(const int idx, const VuObservation *pObservation,
 
     VuVuMarkObservationInstanceInfo vuMarkInstanceInfo;
     vuVuMarkObservationGetInstanceInfo(pObservation, &vuMarkInstanceInfo);
-    __android_log_print(ANDROID_LOG_INFO, "aaaaa", "VuMark[%d]: IDID-idid=%d, uniqueId=%d, name=%s, userData=%s\n", idx,
-                       vuMarkInstanceInfo.numericValue, vuMarkInfo.uniqueId, vuMarkInfo.name, vuMarkInfo.userData ? vuMarkInfo.userData : "NULL");
+    __android_log_print(ANDROID_LOG_INFO, "aaaaa", "VuMark[%d]: InstanceInfo(dataType=%d numeric=%d, str=%s ) uniqueId=%d, name=%s, userData=%s\n", idx,
+                        vuMarkInstanceInfo.dataType, vuMarkInstanceInfo.numericValue, vuMarkInstanceInfo.buffer, vuMarkInfo.uniqueId, vuMarkInfo.name, vuMarkInfo.userData ? vuMarkInfo.userData : "NULL");
 
     markerSize.data[0] = vuMarkInfo.size.data[0];
     markerSize.data[1] = vuMarkInfo.size.data[1];
@@ -805,10 +805,10 @@ AppController::createObservers()
 
     if (mTarget == VUMARK_ID) {
         auto vuMarkConfig = vuVuMarkConfigDefault();
-        vuMarkConfig.databasePath = "VuMark/aaa.xml";
-        vuMarkConfig.templateName = "aaa999";
-//        vuMarkConfig.databasePath = "VuMark/Chateau.xml";
-//        vuMarkConfig.templateName = "Chateau";
+//        vuMarkConfig.databasePath = "VuMark/aaa.xml";
+//        vuMarkConfig.templateName = "aaa999";
+        vuMarkConfig.databasePath = "VuMark/momo001.xml";
+        vuMarkConfig.templateName = "momo001";
         vuMarkConfig.activate = VU_TRUE;
 
         VuVuMarkCreationError vuVuMarkCreationError;
