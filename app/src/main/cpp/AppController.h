@@ -106,6 +106,8 @@ public:
     /// The result is only valid after initAR is called and before deinitAR is called.
     VuController* getPlatformController() { return mPlatformController; }
 
+    std::pair<std::unique_ptr<VuObservationList, decltype(&vuObservationListDestroy)>, int> createVuMarkList();
+    bool getVuMarkResult(const int idx, const VuObservation *pObservation, VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix, VuVector2F& markerSize);
 
 private: // methods
     /// Used by initAR to prepare and invoke Vuforia initialization.

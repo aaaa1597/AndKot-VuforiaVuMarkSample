@@ -382,6 +382,71 @@ AppController::getOrigin(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMa
 }
 
 
+std::pair<std::unique_ptr<VuObservationList, decltype(&vuObservationListDestroy)>, int>
+AppController::createVuMarkList() {
+    VuObservationList* observationList = nullptr;
+    REQUIRE_SUCCESS(vuObservationListCreate(&observationList));
+
+    if (vuStateGetVuMarkObservations(mVuforiaState, observationList) != VU_SUCCESS)
+    {
+        LOG("Error getting VuMark observations");
+        REQUIRE_SUCCESS(vuObservationListDestroy(observationList));
+        std::unique_ptr<VuObservationList, decltype(&vuObservationListDestroy)> _null_ptr_(nullptr, &vuObservationListDestroy);
+        return {std::move(_null_ptr_), -1};
+    }
+
+    int numObservations = 0;
+    REQUIRE_SUCCESS(vuObservationListGetSize(observationList, &numObservations));
+    std::unique_ptr<VuObservationList, decltype(&vuObservationListDestroy)> retptr(observationList, &vuObservationListDestroy);
+    return {std::move(retptr), numObservations};
+}
+
+bool
+AppController::getVuMarkResult(const int idx, const VuObservation *pObservation, VuMatrix44F &projectionMatrix, VuMatrix44F &modelViewMatrix,
+                                                                                 VuMatrix44F &scaledModelViewMatrix, VuVector2F &markerSize) {
+    if (mTarget != VUMARK_ID)
+        return false;
+
+    assert(pObservation);
+    assert(vuObservationIsType(pObservation, VU_OBSERVATION_VUMARK_TYPE) == VU_TRUE);
+    assert(vuObservationHasPoseInfo(pObservation) == VU_TRUE);
+
+    VuPoseInfo poseInfo;
+    REQUIRE_SUCCESS(vuObservationGetPoseInfo(pObservation, &poseInfo));
+
+    VuVuMarkObservationTemplateInfo vuMarkInfo;
+    REQUIRE_SUCCESS(vuVuMarkObservationGetTemplateInfo(pObservation, &vuMarkInfo));
+
+    if (poseInfo.poseStatus == VU_OBSERVATION_POSE_STATUS_NO_POSE)
+        return false;
+
+    VuVuMarkObservationInstanceInfo vuMarkInstanceInfo;
+    vuVuMarkObservationGetInstanceInfo(pObservation, &vuMarkInstanceInfo);
+    __android_log_print(ANDROID_LOG_INFO, "aaaaa", "VuMark[%d]: IDID-idid=%d, uniqueId=%d, name=%s, userData=%s\n", idx,
+                       vuMarkInstanceInfo.numericValue, vuMarkInfo.uniqueId, vuMarkInfo.name, vuMarkInfo.userData ? vuMarkInfo.userData : "NULL");
+
+    markerSize.data[0] = vuMarkInfo.size.data[0];
+    markerSize.data[1] = vuMarkInfo.size.data[1];
+
+    projectionMatrix = mCurrentRenderState.projectionMatrix;
+
+    /* Compute model-view matrix */
+    auto modelMatrix = poseInfo.pose;
+    modelViewMatrix = vuMatrix44FMultiplyMatrix(mCurrentRenderState.viewMatrix, modelMatrix);
+
+    // Calculate a scaled modelViewMatrix for rendering a unit bounding box
+    // z-dimension will be zero for planar target
+    // set it here to the larger dimension so that
+    // a 3D augmentation can be shown
+    VuVector3F scale;
+    scale.data[0] = vuMarkInfo.size.data[0];
+    scale.data[1] = vuMarkInfo.size.data[1];
+    scale.data[2] = std::max(scale.data[0], scale.data[1]);
+    scaledModelViewMatrix = vuMatrix44FScale(scale, modelViewMatrix);
+
+    return true;
+}
+
 bool
 AppController::getImageTargetResult(VuMatrix44F& projectionMatrix, VuMatrix44F& modelViewMatrix, VuMatrix44F& scaledModelViewMatrix, VuVector2F& markerSize)
 {
@@ -739,16 +804,18 @@ AppController::createObservers()
     }
 
     if (mTarget == VUMARK_ID) {
-        auto viMarkConfig = vuVuMarkConfigDefault();
-        viMarkConfig.databasePath = "VuMark/aaa.xml";
-        viMarkConfig.templateName = "vumark_aaa999";
-        viMarkConfig.activate = VU_TRUE;
+        auto vuMarkConfig = vuVuMarkConfigDefault();
+        vuMarkConfig.databasePath = "VuMark/aaa.xml";
+        vuMarkConfig.templateName = "aaa999";
+//        vuMarkConfig.databasePath = "VuMark/Chateau.xml";
+//        vuMarkConfig.templateName = "Chateau";
+        vuMarkConfig.activate = VU_TRUE;
 
         VuVuMarkCreationError vuVuMarkCreationError;
-        if (vuEngineCreateVuMarkObserver(mEngine, &mObjectObserver, &viMarkConfig, &vuVuMarkCreationError) != VU_SUCCESS)
+        if (vuEngineCreateVuMarkObserver(mEngine, &mObjectObserver, &vuMarkConfig, &vuVuMarkCreationError) != VU_SUCCESS)
         {
             LOG("Error creating VuMark observer: 0x%02x", vuVuMarkCreationError);
-            mErrorMessageCallback("Error creating image target observer");
+            mErrorMessageCallback("Error creating vumark observer");
             return false;
         }
     }

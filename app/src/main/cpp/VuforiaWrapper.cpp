@@ -308,6 +308,23 @@ Java_com_aaa_vuforiavumarksample_JniKt_renderFrame(JNIEnv* /* env */, jclass /* 
             gWrapperData.renderer.renderWorldOrigin(worldOriginProjection, worldOriginModelView);
         }
 
+        auto [vuMarkList, CNT] = controller.createVuMarkList();
+        for (int idx = 0; idx < CNT; idx++) {
+            VuMatrix44F trackableVuMarkProjection = {};
+            VuMatrix44F trackableVuMarkModelView = {};
+            VuMatrix44F trackableVuMarkModelViewScaled = {};
+            VuVector2F vuMarkerSize = {};
+            VuObservation *pVuMarkObservation = nullptr;
+            if (vuObservationListGetElement(vuMarkList.get(), 0, &pVuMarkObservation) != VU_SUCCESS)
+                continue;
+            if (controller.getVuMarkResult(idx, pVuMarkObservation, trackableVuMarkProjection, trackableVuMarkModelView, trackableVuMarkModelViewScaled, vuMarkerSize))
+            {
+                gWrapperData.renderer.renderVideoPlayback(trackableVuMarkProjection, trackableVuMarkModelView, trackableVuMarkModelViewScaled, vuMarkerSize);
+                gWrapperData.renderer.renderImageTarget(trackableVuMarkProjection, trackableVuMarkModelView, trackableVuMarkModelViewScaled);
+            }
+        }
+        vuMarkList.reset();
+
         VuMatrix44F trackableProjection;
         VuMatrix44F trackableModelView;
         VuMatrix44F trackableModelViewScaled;
